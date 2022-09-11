@@ -5,9 +5,8 @@ const nodeHtmlToImage = require('node-html-to-image');
 require('dotenv').config();
 
 const header = `<!DOCTYPE html><html><head>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/katex.min.css" integrity="sha384-bYdxxUwYipFNohQlHt0bjN/LCpueqWz13HufFEV1SUatKs1cm4L6fFgCi1jT643X" crossorigin="anonymous">
-<style>body { background-color: #36393f; color: #ffffff; min-width: 1000px; height: 200px; } .katex { font-size: 7.5em; }</style>
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/katex.min.js" integrity="sha384-Qsn9KnoKISj6dI8g7p1HBlNpVx0I8p1SvlwOldgi3IorMle61nQy4zEahWYtljaz" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/katex.min.css">
+<style>body { color: #ffffff; width: fit-content; height: fit-content; } .katex { font-size: 7.5em; }</style>
 </head><body>`;
 const footer = `</body></html>`;
 
@@ -24,34 +23,32 @@ client.on('interactionCreate', async interaction => {
 
 	if (commandName === 'render') {
 		const expression = interaction.options.getString('expression');
-		interaction.deferReply();
-		const path = await generateImage(expression, interaction.id).catch(e => {
-			interaction.followUp('Invalid LaTeX string.');
-		});
-		await interaction.followUp({ files: [ { attachment: path, name: path } ]});
-		unlink(path, (e) => {});
+		const ephemeral = interaction.options.getBoolean('hidden') ?? false;
+
+		await interaction.deferReply({ ephemeral });
+
+		try {
+			const body = katex.renderToString(expression, {
+				throwOnError: false,
+				displayMode: true
+			});
+		
+			let outputPath = `./images/${interaction.id}.png`;
+
+			await nodeHtmlToImage({
+				html: header + body + footer,
+				transparent: true,
+				output: outputPath
+			});
+
+			await interaction.followUp({ files: [ { attachment: outputPath, name: outputPath } ], ephemeral });
+			unlink(outputPath, (e) => {});
+		}
+		catch(e) {
+			console.log(process.env.NODE_ENV === 'development' ? e : null);
+			interaction.followUp({ content: 'Invalid LaTeX string.', ephemeral });
+		}
 	}
 });
 
 client.login(process.env.BOT_TOKEN);
-
-async function generateImage(latexString, id) {
-	try {
-		const body = katex.renderToString(latexString, {
-			throwOnError: true,
-			transparent: true
-		});
-	
-		let outputPath = `./images/${id}.png`;
-	
-		await nodeHtmlToImage({
-			html: header + body + footer,
-			output: outputPath
-		});
-	
-		return outputPath;
-	}
-	catch(e) {
-		throw 'Error';
-	}
-}

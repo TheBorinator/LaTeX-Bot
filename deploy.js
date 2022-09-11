@@ -11,6 +11,12 @@ const commands = [
 				.setName('expression')
 				.setDescription('The LaTeX expression you want to render')
 				.setRequired(true)
+		)
+		.addBooleanOption(option => 
+			option
+				.setName('hidden')
+				.setDescription('Send the result ephemerally (defaults to false)')
+				.setRequired(false)
 		),
 ]
 	.map(command => command.toJSON());
